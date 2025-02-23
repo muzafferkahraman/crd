@@ -5,6 +5,6 @@ generatorOptions:
 secretGenerator:
 - name: mysql-pass
   literals:
-  - password=PLACE_MYSQL_PASSWORD_HERE
+  - password=Muzo8080
 resources:
   - mysql-deployment.yaml
