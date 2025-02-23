@@ -1,3 +1,4 @@
+# Creates a Service that exposes the MySQL database
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,10 +10,31 @@ spec:
   type: NodePort
   ports:
     - port: 3306
+      targetPort: 3306
+      protocol: TCP
   selector:
     app: crd-op-app
     tier: mysql
 ---
+# Creates a PersistentVolume (PV) for MySQL
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+  namespace: crd-op-writer
+  labels:
+    app: crd-op-app
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: "/mnt/data/mysql"  # Ensure this directory exists on your node
+---
+# Requests 2Gi of persistent storage for MySQL
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -25,8 +47,10 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi
+      storage: 2Gi
+  storageClassName: manual
 ---
+# Stores an SQL script (initdb.sql) to initialize the database
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -46,6 +70,7 @@ data:
         PRIMARY KEY (id)
     );
 ---
+# Defines a Deployment that runs a MySQL Pod
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -69,6 +94,7 @@ spec:
       containers:
       - image: mysql:8.0.32
         name: mysql
+        imagePullPolicy: IfNotPresent 
         env:
         - name: MYSQL_ROOT_PASSWORD
           valueFrom:
@@ -91,7 +117,7 @@ spec:
         - name: mysql-persistent-storage
           mountPath: /var/lib/mysql
         - name: mysql-initdb
-          mountPath: /docker-entrypoint-initdb.d
+          mountPath: /docker-entrypoint-initdb.d  # Auto-executed at startup
       volumes:
       - name: mysql-persistent-storage
         persistentVolumeClaim:
